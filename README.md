@@ -62,6 +62,7 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 | **Backend Language** | Rust (`tokio`, `reqwest`, `serde`, `chrono`) | Business logic, status fetching, state management |
 | **System Tray & Autostart** | Tauri Tray API, `tauri-plugin-autostart` | macOS menubar item & macOS login item toggle |
 | **Notifications** | `tauri-plugin-notification` | macOS system alerts on status change |
+| **Auto-Updates** | `tauri-plugin-updater`, `tauri-plugin-process` | Signed in-app updates from GitHub Releases |
 | **Persistence** | `tauri-plugin-store` or custom JSON file | Persistent user configuration store |
 | **Frontend Framework**| Lit (`lit`) | Web Components UI library |
 | **Frontend Language** | TypeScript (`typescript`) | Typed frontend scripting |
@@ -243,6 +244,14 @@ github-monitor/
 - [ ] Implement macOS Notifications (`notification.rs`):
   - [ ] Integrate `tauri-plugin-notification`.
   - [ ] Trigger alert when overall status changes.
+
+#### Auto-Updates (`src-tauri/`)
+- [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).
+- [ ] Generate updater signing keypair (`npm run tauri signer generate`); store private key + password as CI secrets.
+- [ ] Configure `tauri.conf.json`: `bundle.createUpdaterArtifacts: true`, `plugins.updater.pubkey`, and `plugins.updater.endpoints` (GitHub Releases `latest.json`).
+- [ ] Check for updates on launch and periodically (e.g. every 24h) in the background.
+- [ ] Add tray menu item `Check for updates…` (between autostart and `Quit`); prompt to install and relaunch when an update is found.
+- [ ] Publish signed release artifacts and `latest.json` via GitHub Actions on version tag.
 
 ---
 
