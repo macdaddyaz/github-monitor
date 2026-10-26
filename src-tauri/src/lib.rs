@@ -1,3 +1,9 @@
+mod models;
+mod monitor;
+mod tray;
+
+use tauri::{Manager, WindowEvent};
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -11,7 +17,15 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            app.manage(monitor::SharedMonitor::default());
+            tray::init(app.handle())?;
+            monitor::spawn(app.handle().clone());
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::ThemeChanged(theme) = event {
+                tray::set_theme(window.app_handle(), *theme);
+            }
         })
         .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())

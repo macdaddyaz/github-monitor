@@ -257,23 +257,23 @@ github-monitor/
 - [ ] Add plugin permissions to the existing `src-tauri/capabilities/default.json` as each plugin is integrated (`opener:default`, `notification:default`, `autostart:default`, `updater:default`, `process:allow-restart`, `store:default`). App-defined commands are allowed by default.
 
 #### Backend & Rust Monitor (`src-tauri/`)
-- [ ] Implement Rust data structures in `models.rs`:
-  - [ ] `GitHubStatusSummary`, `StatusIndicator`, `Component`, `Incident`, `Page` serde structs.
-  - [ ] `OverallStatus` enum: `Healthy`, `Degraded`, `Unhealthy`, `Unknown`.
-  - [ ] `AppStatusState` (current status, last known status, last good payload, first-observed-non-healthy timestamp).
-- [ ] Create HTTP client service in `monitor.rs` using `reqwest`:
-  - [ ] Fetch JSON from `https://www.githubstatus.com/api/v2/summary.json`.
-  - [ ] Map fetch failures (offline, HTTP error, bad payload) to `Unknown`, keeping the last good payload.
-- [ ] Implement shared background polling loop (`tokio` async task):
-  - [ ] Execute fetch every 60 seconds.
-  - [ ] Track state transitions (`Healthy` <-> `Degraded` <-> `Unhealthy`, plus `Unknown`).
-  - [ ] Compute incident start from the earliest unresolved `incidents[].created_at`; fall back to first observed non-healthy time.
-- [ ] Implement system tray (`tray.rs`):
-  - [ ] Create 44px tray icons: template `tray-healthy.png`; light/dark colored variants for degraded, unhealthy, unknown.
-  - [ ] Swap tray icon on status change; swap light/dark variants on system theme change.
-  - [ ] Status menu item as `IconMenuItem` with colored dot image; update text dynamically (`GitHub status: Healthy`, etc.).
-- [ ] Implement Native Tray Menu click handlers:
-  - [ ] Clicking status item opens `https://www.githubstatus.com` via `tauri-plugin-opener`.
+- [x] Implement Rust data structures in `models.rs`:
+  - [x] `GitHubStatusSummary`, `StatusIndicator`, `Component`, `Incident`, `Page` serde structs.
+  - [x] `OverallStatus` enum: `Healthy`, `Degraded`, `Unhealthy`, `Unknown`.
+  - [x] `AppStatusState` (current status, last known status, last good payload, first-observed-non-healthy timestamp).
+- [x] Create HTTP client service in `monitor.rs` using `reqwest`:
+  - [x] Fetch JSON from `https://www.githubstatus.com/api/v2/summary.json`.
+  - [x] Map fetch failures (offline, HTTP error, bad payload) to `Unknown`, keeping the last good payload.
+- [x] Implement shared background polling loop (`tokio` async task):
+  - [x] Execute fetch every 60 seconds.
+  - [x] Track state transitions (`Healthy` <-> `Degraded` <-> `Unhealthy`, plus `Unknown`).
+  - [x] Compute incident start from the earliest unresolved `incidents[].created_at`; fall back to first observed non-healthy time.
+- [x] Implement system tray (`tray.rs`):
+  - [x] Create 44px tray icons: template `tray-healthy.png`; light/dark colored variants for degraded, unhealthy, unknown.
+  - [x] Swap tray icon on status change; swap light/dark variants on system theme change.
+  - [x] Status menu item as `IconMenuItem` with colored dot image; update text dynamically (`GitHub status: Healthy`, etc.).
+- [x] Implement Native Tray Menu click handlers:
+  - [x] Clicking status item opens `https://www.githubstatus.com` via `tauri-plugin-opener`.
 - [ ] Implement autostart functionality (in `tray.rs`):
   - [ ] Integrate `tauri-plugin-autostart`.
   - [ ] Add menu item "Start when logging in" (checkbox item); initial state from `is_enabled()`.
