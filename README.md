@@ -11,7 +11,8 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 ```
                           ┌──────────────────────────────────────────────────┐
                           │               GitHub Status API                  │
-                          │   https://www.githubstatus.com/api/v2/summary.json│
+                          │  https://{region}.githubstatus.com/api/v2/       │
+                          │                 summary.json                     │
                           └────────────────────────┬─────────────────────────┘
                                                    │ HTTP GET (reqwest)
                                                    ▼
@@ -19,16 +20,16 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 │                                   Rust Core Backend (Tauri)                                     │
 │                                                                                                 │
 │  ┌───────────────────────────┐     ┌────────────────────────────┐     ┌──────────────────────┐  │
-│  │     AppSettings Store     │ ──► │       Shared Monitor       │ ──► │  macOS Notifications │  │
-│  │ (interval, region, theme) │     │  (Tokio Polling Loop & State)│     │(tauri-plugin-notification)│
+│  │      Settings Store       │ ──► │       Shared Monitor       │ ──► │ macOS Notifications  │  │
+│  │  (tauri-plugin-store)     │     │ (Tokio Polling Loop/State) │     │ (plugin-notification)│  │
 │  └───────────────────────────┘     └──────────────┬─────────────┘     └──────────────────────┘  │
 │                                                   │                                             │
 │                                    State Update & │ Diffing                                     │
 │                                                   ▼                                             │
 │                                    ┌────────────────────────────┐                               │
 │                                    │   macOS System Tray Menu   │                               │
-│                                    │ (Dynamic Icon Overlay &    │                               │
-│                                    │   Native Status Items)     │                               │
+│                                    │ (Pre-rendered Status Icons │                               │
+│                                    │   & Native Status Items)   │                               │
 │                                    └────────────────────────────┘                               │
 │                                                   │                                             │
 │                                                   │ Tauri IPC Events / Commands                 │
@@ -40,14 +41,14 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 │                                                                                                 │
 │  ┌─────────────────────────────────┐   ┌────────────────────────────────┐  ┌─────────────────┐  │
 │  │         <app-root>              │   │     <status-banner>            │  │ <settings-view> │  │
-│  │ (Theme, Routing, State Store)   │──►│ (Overall Status & Downtime)    │──►│(Interval, Region│  │
+│  │ (Theme, Routing, State Store)   │──►│ (Overall Status & Downtime)    │  │(Interval, Region│  │
 │  └─────────────────────────────────┘   └────────────────────────────────┘  │ Theme Selection)│  │
 │                                                        │                   └─────────────────┘  │
 │                                                        ▼                                        │
 │                                        ┌────────────────────────────────┐                       │
 │                                        │       <component-list>         │                       │
-│                                        │  (Individual Feature Grid)     │                       │
-│                                        │  (Git, Actions, Copilot, etc.)  │                       │
+│                                        │  (Individual Feature Grid,     │                       │
+│                                        │   rendered from API data)      │                       │
 │                                        └────────────────────────────────┘                       │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -59,16 +60,17 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 | Domain | Technology / Library | Purpose |
 | :--- | :--- | :--- |
 | **Desktop Runtime** | Tauri v2 (`tauri`, `tauri-build`) | Lightweight macOS desktop runtime |
-| **Backend Language** | Rust (`tokio`, `reqwest`, `serde`, `chrono`) | Business logic, status fetching, state management |
+| **Backend Language** | Rust 2024 edition (`tokio`, `reqwest`, `serde`, `chrono`) | Business logic, status fetching, state management |
 | **System Tray & Autostart** | Tauri Tray API, `tauri-plugin-autostart` | macOS menubar item & macOS login item toggle |
 | **Notifications** | `tauri-plugin-notification` | macOS system alerts on status change |
+| **Opening URLs** | `tauri-plugin-opener` (already installed) | Open status page in default browser |
 | **Auto-Updates** | `tauri-plugin-updater`, `tauri-plugin-process` | Signed in-app updates from GitHub Releases |
-| **Persistence** | `tauri-plugin-store` or custom JSON file | Persistent user configuration store |
+| **Persistence** | `tauri-plugin-store` | Persistent user configuration store |
 | **Frontend Framework**| Lit (`lit`) | Web Components UI library |
 | **Frontend Language** | TypeScript (`typescript`) | Typed frontend scripting |
-| **Styling & Theme** | Tailwind CSS (`tailwindcss`) + DaisyUI (`daisyui`) | Responsive styling and light/dark theme modes |
-| **Build Tooling** | Vite (`vite`) | Fast frontend bundling and dev server |
-| **Frontend Testing** | Vitest (`vitest`), `@open-wc/testing` | Unit and component testing |
+| **Styling & Theme** | Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`) + DaisyUI v5 (`daisyui`) | Responsive styling and light/dark theme modes |
+| **Build Tooling** | Vite (`vite`), pnpm | Fast frontend bundling and dev server |
+| **Frontend Testing** | Vitest (`vitest`) + `happy-dom`, `@open-wc/testing-helpers` | Unit and component testing |
 
 ---
 
@@ -77,18 +79,16 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 ```
 github-monitor/
 ├── package.json
+├── pnpm-lock.yaml
 ├── tsconfig.json
-├── vite.config.ts
-├── tailwind.config.js
-├── postcss.config.js
-├── vitest.config.ts
+├── vite.config.ts                # Vite + @tailwindcss/vite + Vitest (`test` key)
+├── index.html
 ├── README.md
 ├── src/                          # Lit Frontend Web Components
-│   ├── index.html
-│   ├── index.ts
-│   ├── styles/
-│   │   └── main.css              # Tailwind & DaisyUI entry
+│   ├── main.ts                   # Entry point; imports styles.css globally
+│   ├── styles.css                # `@import "tailwindcss"; @plugin "daisyui";`
 │   ├── components/
+│   │   ├── tailwind-element.ts   # LitElement base class that adopts styles.css
 │   │   ├── app-root.ts           # Main layout & router container
 │   │   ├── status-banner.ts      # Overall status & uptime indicator
 │   │   ├── component-list.ts     # Feature status grid/list
@@ -105,18 +105,20 @@ github-monitor/
 └── src-tauri/                    # Rust Backend Logic
     ├── Cargo.toml
     ├── tauri.conf.json
-    ├── icons/                    # App & Tray template icons
-    │   ├── tray-icon.png
-    │   └── tray-icon@2x.png
+    ├── capabilities/
+    │   └── default.json          # Plugin permissions for the main window
+    ├── icons/                    # App & tray icons (44px tray icons)
+    │   ├── tray-healthy.png      # Template image (monochrome)
+    │   ├── tray-degraded-{light,dark}.png
+    │   ├── tray-unhealthy-{light,dark}.png
+    │   ├── tray-unknown-{light,dark}.png
+    │   └── dot-{green,yellow,red,gray}.png   # Menu item status dots
     └── src/
         ├── main.rs
         ├── lib.rs
-        ├── models.rs             # Status API, Config & State structs
-        ├── monitor.rs            # Shared background polling service
-        ├── tray.rs               # Dynamic Menubar & status overlay engine
-        ├── autostart.rs          # Startup launch manager
-        ├── config.rs             # Settings persistence layer
-        ├── notification.rs       # System notification manager
+        ├── models.rs             # Status API, Settings & State structs
+        ├── monitor.rs            # Shared background polling service + notifications
+        ├── tray.rs               # Menubar icon, menu & autostart toggle
         └── commands.rs           # Tauri IPC commands exposed to Lit
 ```
 
@@ -126,37 +128,45 @@ github-monitor/
 
 ### Phase 1: Core Menubar Monitor & Background Engine
 
-#### 1. System Tray & Visual Theme Adaptation
-* **Icon Strategy**:
-  * macOS template image (`tray-icon.png`) for dark/light menubar theme auto-matching.
-  * Status indicator overlaid dynamically using Rust drawing/image buffer (`image` crate) or pre-rendered status variants:
-    * 🟢 **Healthy**: Green dot (`#22c55e`)
-    * 🟡 **Degraded**: Yellow dot (`#eab308`)
-    * 🔴 **Severely Degraded / Down**: Red dot (`#ef4444`)
+#### 1. App Shell
+* Menubar-only app: `app.set_activation_policy(ActivationPolicy::Accessory)` hides the Dock icon.
+* Main window declared in `tauri.conf.json` with `visible: false`; it is only shown from the tray (Phase 2).
+
+#### 2. System Tray & Visual Theme Adaptation
+* **Icon Strategy** (pre-rendered PNGs, no runtime drawing):
+  * 🟢 **Healthy**: Monochrome template image (`tray-healthy.png`, `icon_as_template(true)`); auto-matches light/dark menubar.
+  * 🟡 **Degraded** / 🔴 **Unhealthy** / ⚪ **Unknown**: Colored non-template images with a status dot (`#eab308`, `#ef4444`, gray). Template mode strips color, so these ship as separate light and dark variants and are swapped on system theme change.
 * **Tray Menu Specification**:
-  * Item 1: `✅ GitHub status: Healthy` (or `⚠️ Degraded`, `❌ Unhealthy`).
-    * *Click handler*: Opens `https://www.githubstatus.com` in default browser using Tauri shell API / `open::that`.
+  * Item 1: `GitHub status: Healthy` (or `Degraded`, `Unhealthy`, `Unknown`), as an `IconMenuItem` with a colored dot image (green / yellow / red / gray). This is the native `NSMenuItem` image mechanism, as used by Docker Desktop's "Engine running" items.
+    * *Click handler*: Opens the status page for the selected region in the default browser via `tauri-plugin-opener`.
   * Item 2: Separator.
   * Item 3: `Start when logging in` (Checkable menuItem).
-    * Default: `Unchecked` (off).
+    * Initial checked state read from `tauri-plugin-autostart` `is_enabled()` at startup.
     * *Click handler*: Toggles autostart via `tauri-plugin-autostart`.
-  * Item 4: Separator.
-  * Item 5: `Quit` -> Terminates application.
+  * Item 4: `Check for updates…`.
+  * Item 5: Separator.
+  * Item 6: `Quit` -> Terminates application.
 
-#### 2. Rust Shared Monitor Service
+#### 3. Rust Shared Monitor Service
 * **Polling Loop**:
   * Implemented as an asynchronous `tokio::spawn` background task managed by `SharedMonitor`.
   * Default interval: 60 seconds.
-  * Endpoint: `https://www.githubstatus.com/api/v2/summary.json`
+  * Endpoint: `https://www.githubstatus.com/api/v2/summary.json` (region-specific host in Phase 3).
 * **Status Categorization**:
   * `indicator` mapping:
-    * `none` ➔ `Healthy` (`✅`)
-    * `minor` ➔ `Degraded` (`⚠️`)
-    * `major` / `critical` ➔ `Unhealthy` (`❌`)
+    * `none` ➔ `Healthy`
+    * `minor` ➔ `Degraded`
+    * `major` / `critical` ➔ `Unhealthy`
+  * No data yet, or fetch failed (offline, HTTP error, bad payload) ➔ `Unknown`. The last good payload is kept for display.
+* **Downtime Calculation**:
+  * Derived from the payload, not tracked locally: the earliest `created_at` among unresolved `incidents[]` in `summary.json`. This survives app restarts.
+  * Fallback when non-healthy with no open incident: time the app first observed the non-healthy status.
 * **Notification System**:
-  * Compares current payload with `previous_status`.
-  * Triggers native macOS notification when `overall_status` shifts (e.g. `Healthy` ➔ `Degraded`).
-  * Notification text: *"GitHub Status Changed: Service is now Degraded. Click for details."*
+  * Compares the current status with the last *known* status (`Unknown` never triggers or resets a notification).
+  * The first successful fetch sets the baseline without notifying.
+  * Triggers native macOS notification when the overall status shifts (e.g. `Healthy` ➔ `Degraded`).
+  * Notification text: *"GitHub Status Changed: Service is now Degraded."*
+  * **Open question (research)**: Can clicking the notification open the status page? `tauri-plugin-notification` documents actions and `onAction` ([docs](https://v2.tauri.app/reference/javascript/notification/)); confirm desktop/macOS support before promising click-through. Notifications only display correctly from a bundled app, not `tauri dev`.
 
 ---
 
@@ -164,35 +174,47 @@ github-monitor/
 
 #### 1. Main Dashboard Window
 * **Tray Action**: Added menu item `Show the dashboard` to native Tray.
-* **Window Configuration**: macOS native window, frameless/styled title bar, hidden on start or toggled via tray icon.
+* **Window Behavior**: Hidden on start; shown and focused from the tray. Closing the window intercepts `CloseRequested`, calls `prevent_close()`, and hides the window instead of quitting.
 
 #### 2. Dashboard Interface Requirements
 * **Overall Status Section**:
   * Visual badge with current status icon & color.
-  * Hyperlink button to open `https://www.githubstatus.com` in default browser.
-  * **Downtime Calculation**: When status is `Degraded` or `Unhealthy`, calculates and renders formatted elapsed time since service was last healthy (e.g. `Elapsed downtime: 1h 24m`).
+  * Hyperlink button to open the status page in the default browser (`openUrl` from `@tauri-apps/plugin-opener`).
+  * **Downtime Display**: When status is `Degraded` or `Unhealthy`, renders the elapsed time since the incident started (see Phase 1 Downtime Calculation), e.g. `Elapsed downtime: 1h 24m`.
 * **Feature Components Grid**:
-  * Lists individual GitHub services parsed from `components` array:
-    * Git Operations, API Requests, Webhooks, Issues, Pull Requests, Actions, Packages, Pages, GitHub Copilot.
+  * Renders whatever services the API returns in `components[]`; no hard-coded service list.
+  * Filters out group containers (`group: true`) and the filler `Visit www.githubstatus.com for more information` entry.
   * Each card displays:
     * Service Name
-    * Status Badge (`Operational`, `Degraded Performance`, `Partial Outage`, `Major Outage`)
+    * Status Badge (`Operational`, `Degraded Performance`, `Partial Outage`, `Major Outage`, `Under Maintenance`)
     * Description / Sub-status text.
 
 #### 3. Frontend Architecture (Lit + TypeScript + DaisyUI)
-* Web Components implemented using Lit `LitElement`:
+* **Styling in shadow DOM**: Global CSS does not reach shadow roots, so all components extend a shared base class following the [daisyUI Lit install guide](https://daisyui.com/docs/install/lit/):
+  ```ts
+  import { LitElement, unsafeCSS } from 'lit';
+  import globalStyles from '../styles.css?inline';
+
+  export class TailwindElement extends LitElement {
+    static styles = [unsafeCSS(globalStyles)];
+  }
+  ```
+  * The single `CSSResult` is shared, so every shadow root adopts the same constructed stylesheet.
+  * Subclasses adding their own styles use `static styles = [...TailwindElement.styles, css\`…\`]`.
+  * `main.ts` also imports `styles.css` into the document, so Tailwind v4 `@property` rules (ignored inside shadow roots) and DaisyUI theme variables register globally.
+* Web Components implemented using `TailwindElement`:
   * `<app-root>`: Top-level layout with tab navigation (`Dashboard` | `Settings`).
   * `<status-banner>`: Hero section showing current status and elapsed downtime timer.
   * `<component-list>`: Grid displaying status cards for all components.
   * `<elapsed-timer>`: Custom timer component updating elapsed downtime string every minute.
-* Styling configured via Tailwind CSS & DaisyUI theme variables (`data-theme`).
+* Styling configured via Tailwind CSS v4 & DaisyUI theme variables (`data-theme`).
 
 ---
 
 ### Phase 3: Persistent Settings & Themes
 
 #### 1. Persistent Config Engine
-* Configuration saved to disk in JSON format (`app_settings.json`):
+* Configuration saved via `tauri-plugin-store` to `settings.json` in the app data folder:
   ```json
   {
     "refresh_interval_minutes": 1,
@@ -208,10 +230,12 @@ github-monitor/
   * Updating interval updates the Rust `SharedMonitor` timer loop dynamically without needing app restart.
 * **GitHub Region**:
   * Options: `Global` (default), `AU` (Australia), `EU` (Europe), `JP` (Japan), `US` (United States).
+  * Maps to the status host used for both the API and the "open status page" link: `Global` ➔ `www.githubstatus.com`, others ➔ `{region}.githubstatus.com`. **Verify each regional host exists and serves `/api/v2/summary.json` before implementing.**
+  * Changing region triggers an immediate refetch.
 * **Theme Selection**:
   * Options: `System` (default), `Light`, `Dark`.
-  * System mode listens to macOS system theme preference changes (`prefers-color-scheme`).
-  * Updates DaisyUI root attribute `data-theme="light"` or `data-theme="dark"`.
+  * `Light` / `Dark` set DaisyUI root attribute `data-theme="light"` or `data-theme="dark"`.
+  * `System` removes `data-theme`; DaisyUI follows `prefers-color-scheme` natively via `@plugin "daisyui" { themes: light --default, dark --prefersdark; }`.
 
 ---
 
@@ -219,35 +243,45 @@ github-monitor/
 
 ### 🚀 Phase 1: Menubar App & Backend Core
 
+#### Project Setup
+- [x] Initialize Tauri v2 project structure.
+- [ ] Update all dependencies (npm and Cargo) to current versions.
+- [ ] Enable the `tray-icon` feature on `tauri` in `Cargo.toml`.
+- [ ] Hide the Dock icon (`ActivationPolicy::Accessory`) and set the main window to `visible: false`.
+- [ ] Set `app.withGlobalTauri: false` (the bridge imports `@tauri-apps/api`).
+- [ ] Replace `app.security.csp: null` with a real CSP.
+- [ ] Add plugin permissions to the existing `src-tauri/capabilities/default.json` as each plugin is integrated (`opener:default`, `notification:default`, `autostart:default`, `updater:default`, `process:allow-restart`, `store:default`). App-defined commands are allowed by default.
+
 #### Backend & Rust Monitor (`src-tauri/`)
-- [ ] Initialize Tauri v2 project structure with tray support enabled.
 - [ ] Implement Rust data structures in `models.rs`:
-  - [ ] `GitHubStatusSummary`, `StatusIndicator`, `Component`, `Page` serde structs.
-  - [ ] `AppStatusState` (stores current status, previous status, last healthy timestamp).
+  - [ ] `GitHubStatusSummary`, `StatusIndicator`, `Component`, `Incident`, `Page` serde structs.
+  - [ ] `OverallStatus` enum: `Healthy`, `Degraded`, `Unhealthy`, `Unknown`.
+  - [ ] `AppStatusState` (current status, last known status, last good payload, first-observed-non-healthy timestamp).
 - [ ] Create HTTP client service in `monitor.rs` using `reqwest`:
   - [ ] Fetch JSON from `https://www.githubstatus.com/api/v2/summary.json`.
-  - [ ] Add error handling and offline fallback logic.
+  - [ ] Map fetch failures (offline, HTTP error, bad payload) to `Unknown`, keeping the last good payload.
 - [ ] Implement shared background polling loop (`tokio` async task):
   - [ ] Execute fetch every 60 seconds.
-  - [ ] Track state transitions (`Healthy` <-> `Degraded` <-> `Unhealthy`).
-  - [ ] Track `last_healthy_at` timestamp.
-- [ ] Implement dynamic system tray icon rendering (`tray.rs`):
-  - [ ] Load standard monochrome GitHub icon.
-  - [ ] Overlay colored indicator dot: Green (Healthy), Yellow (Degraded), Red (Unhealthy).
-  - [ ] Update tray menu text dynamically (`✅ GitHub status: Healthy`, etc.).
+  - [ ] Track state transitions (`Healthy` <-> `Degraded` <-> `Unhealthy`, plus `Unknown`).
+  - [ ] Compute incident start from the earliest unresolved `incidents[].created_at`; fall back to first observed non-healthy time.
+- [ ] Implement system tray (`tray.rs`):
+  - [ ] Create 44px tray icons: template `tray-healthy.png`; light/dark colored variants for degraded, unhealthy, unknown.
+  - [ ] Swap tray icon on status change; swap light/dark variants on system theme change.
+  - [ ] Status menu item as `IconMenuItem` with colored dot image; update text dynamically (`GitHub status: Healthy`, etc.).
 - [ ] Implement Native Tray Menu click handlers:
-  - [ ] Clicking status header launches `https://www.githubstatus.com` in default browser.
-- [ ] Implement autostart functionality (`autostart.rs`):
+  - [ ] Clicking status item opens `https://www.githubstatus.com` via `tauri-plugin-opener`.
+- [ ] Implement autostart functionality (in `tray.rs`):
   - [ ] Integrate `tauri-plugin-autostart`.
-  - [ ] Add menu item "Start when logging in" (checkbox item, default off).
+  - [ ] Add menu item "Start when logging in" (checkbox item); initial state from `is_enabled()`.
   - [ ] Toggle startup item on/off on menu click.
-- [ ] Implement macOS Notifications (`notification.rs`):
+- [ ] Implement macOS Notifications (in `monitor.rs`):
   - [ ] Integrate `tauri-plugin-notification`.
-  - [ ] Trigger alert when overall status changes.
+  - [ ] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
+  - [ ] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click.
 
 #### Auto-Updates (`src-tauri/`)
 - [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).
-- [ ] Generate updater signing keypair (`npm run tauri signer generate`); store private key + password as CI secrets.
+- [ ] Generate updater signing keypair (`pnpm tauri signer generate`); store private key + password as CI secrets.
 - [ ] Configure `tauri.conf.json`: `bundle.createUpdaterArtifacts: true`, `plugins.updater.pubkey`, and `plugins.updater.endpoints` (GitHub Releases `latest.json`).
 - [ ] Check for updates on launch and periodically (e.g. every 24h) in the background.
 - [ ] Add tray menu item `Check for updates…` (between autostart and `Quit`); prompt to install and relaunch when an update is found.
@@ -258,49 +292,56 @@ github-monitor/
 ### 🎨 Phase 2: Lit Web Components Dashboard & UI Logic
 
 #### Frontend Setup & Tech Stack Configuration
-- [ ] Configure `package.json` with dependencies:
-  - [ ] `lit`, `typescript`, `vite`, `tailwindcss`, `daisyui`, `postcss`, `autoprefixer`, `vitest`, `@open-wc/testing`.
-- [ ] Configure `tailwind.config.js` and `postcss.config.js` with DaisyUI plugin and themes (`light`, `dark`).
-- [ ] Set up `vitest.config.ts` for unit testing Web Components.
+- [ ] Add dependencies with pnpm:
+  - [ ] `lit`, `tailwindcss`, `@tailwindcss/vite`, `daisyui`, `vitest`, `happy-dom`, `@open-wc/testing-helpers`.
+- [ ] Add `tailwindcss()` to `vite.config.ts` plugins; set `src/styles.css` to `@import "tailwindcss";` and `@plugin "daisyui" { themes: light --default, dark --prefersdark; }`.
+- [ ] Configure Vitest via the `test` key in `vite.config.ts` (`environment: 'happy-dom'`); add `test` and `test:watch` scripts.
+- [ ] Create `TailwindElement` base class (`src/components/tailwind-element.ts`) adopting `styles.css?inline`; import `styles.css` globally in `main.ts`.
 
 #### Rust Backend Extensions for UI
 - [ ] Add tray menu item: `Show the dashboard` -> unhides and focuses main window.
-- [ ] Expose Tauri IPC commands in `commands.rs`:
-  - [ ] `get_current_status`: returns complete status summary and component array.
-  - [ ] `open_status_page`: opens status URL in default browser.
+- [ ] Hide (not close) the main window on `CloseRequested` (`api.prevent_close()`).
+- [ ] Expose Tauri IPC command in `commands.rs`:
+  - [ ] `get_current_status`: returns overall status, incident start time, and component array.
 - [ ] Emit Tauri IPC event (`status-updated`) whenever status refreshes in Rust.
 
 #### Frontend Web Components (`src/components/`)
-- [ ] Create `tauri-bridge.ts` service to wrap IPC calls and event listeners.
+- [ ] Create `tauri-bridge.ts` service to wrap IPC calls and event listeners (subscribe to `status-updated` before the initial `get_current_status` call).
 - [ ] Implement `<app-root>` element:
   - [ ] Navigation header / tab system (`Dashboard` / `Settings`).
   - [ ] Event listener for background status updates from Rust backend.
 - [ ] Implement `<status-banner>` element:
   - [ ] Status icon badge & text description.
-  - [ ] Link button to open `https://www.githubstatus.com` in browser.
+  - [ ] Link button to open the status page via `openUrl` from `@tauri-apps/plugin-opener`.
 - [ ] Implement `<elapsed-timer>` element:
-  - [ ] Calculate and display formatted elapsed downtime (`X hours Y minutes`) when status is non-healthy.
+  - [ ] Calculate and display formatted elapsed downtime (`X hours Y minutes`) from the incident start time when status is non-healthy.
 - [ ] Implement `<component-list>` & `<component-card>` elements:
-  - [ ] Grid layout displaying individual GitHub services (Git, Actions, Copilot, API, Webhooks, Issues, PRs, Packages, Pages).
-  - [ ] Color-coded status badges for each component.
+  - [ ] Grid layout rendering all components from the API, excluding group containers and the filler entry.
+  - [ ] Color-coded status badges for each component, including `Under Maintenance`.
 
 #### Frontend Testing (`src/tests/`)
-- [ ] Write Vitest tests for `<status-banner>` rendering states (`Healthy`, `Degraded`, `Unhealthy`).
+- [ ] Write Vitest tests for `<status-banner>` rendering states (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`).
 - [ ] Write Vitest tests for `<elapsed-timer>` downtime calculation logic.
-- [ ] Write Vitest tests for `<component-list>` data binding.
+- [ ] Write Vitest tests for `<component-list>` data binding and filtering.
+
+#### Release Signing & Distribution
+- [ ] Sign the app with an Apple Developer ID certificate and notarize it in CI (avoids Gatekeeper blocking first installs).
+- [ ] Build `universal-apple-darwin` so `latest.json` covers both `darwin-aarch64` and `darwin-x86_64`.
 
 ---
 
 ### ⚙️ Phase 3: Persistent Settings & Complete Theme System
 
 #### Rust Backend Settings Engine
-- [ ] Implement persistent configuration store in `config.rs`:
-  - [ ] Define `AppSettings` struct: `refresh_interval_minutes` (1–60), `github_region`, `theme`.
-  - [ ] Load and save settings to local app data folder (`app_settings.json`).
+- [ ] Implement persistent configuration with `tauri-plugin-store`:
+  - [ ] Define `AppSettings` struct in `models.rs`: `refresh_interval_minutes` (1–60), `github_region`, `theme`.
+  - [ ] Load and save settings to `settings.json` in the app data folder.
 - [ ] Expose Tauri IPC commands:
   - [ ] `get_settings`: fetch current persistent configuration.
-  - [ ] `update_settings`: save updated settings to disk and re-configure backend components.
+  - [ ] `update_settings`: save updated settings and re-configure backend components.
 - [ ] Dynamically update `SharedMonitor` polling interval when `refresh_interval_minutes` is updated.
+- [ ] Map `github_region` to the status host for the API and the status page link; refetch immediately on change.
+- [ ] Verify each regional status host exists and serves `/api/v2/summary.json`.
 
 #### Frontend Settings View (`src/components/settings-view.ts`)
 - [ ] Implement `<settings-view>` Web Component:
@@ -314,32 +355,33 @@ github-monitor/
 - [ ] Implement theme manager service in frontend:
   - [ ] `Light`: set `document.documentElement.setAttribute('data-theme', 'light')`.
   - [ ] `Dark`: set `document.documentElement.setAttribute('data-theme', 'dark')`.
-  - [ ] `System`: attach listener to `window.matchMedia('(prefers-color-scheme: dark)')` and apply matching theme dynamically.
+  - [ ] `System`: `document.documentElement.removeAttribute('data-theme')`; DaisyUI follows `prefers-color-scheme` via `--prefersdark`.
 
 ---
 
 ## 🏃 Getting Started & Development Commands
 
 ### Prerequisites
-* **Node.js**: `^18.0.0` or `^20.0.0`
-* **Rust**: `^1.75.0` and `cargo`
+* **Node.js**: `>=24`
+* **pnpm**: `>=10`
+* **Rust**: `>=1.85` (edition 2024) and `cargo`
 * **macOS**: macOS 11+ (Big Sur or newer)
 
 ### Development Commands
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run frontend unit tests
-npm run test
+pnpm test
 
 # Run Vitest in watch mode
-npm run test:watch
+pnpm test:watch
 
 # Start Tauri app in development mode
-npm run tauri dev
+pnpm tauri dev
 
 # Build production macOS binary (.app / .dmg)
-npm run tauri build
+pnpm tauri build
 ```
