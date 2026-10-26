@@ -80,6 +80,7 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 github-monitor/
 ├── package.json
 ├── pnpm-lock.yaml
+├── mise.toml                     # Pinned Node, pnpm, Rust toolchain
 ├── tsconfig.json
 ├── vite.config.ts                # Vite + @tailwindcss/vite + Vitest (`test` key)
 ├── index.html
@@ -245,6 +246,8 @@ github-monitor/
 
 #### Project Setup
 - [x] Initialize Tauri v2 project structure.
+- [x] Add `mise.toml` (Node 24, pnpm 12, Rust stable).
+- [ ] Set `packageManager` in `package.json` to match the pnpm version.
 - [ ] Update all dependencies (npm and Cargo) to current versions.
 - [ ] Enable the `tray-icon` feature on `tauri` in `Cargo.toml`.
 - [ ] Hide the Dock icon (`ActivationPolicy::Accessory`) and set the main window to `visible: false`.
@@ -362,9 +365,10 @@ github-monitor/
 ## 🏃 Getting Started & Development Commands
 
 ### Prerequisites
-* **Node.js**: `>=24`
-* **pnpm**: `>=10`
-* **Rust**: `>=1.85` (edition 2024) and `cargo`
+* **[mise](https://mise.jdx.dev)**: run `mise install` to get the pinned toolchain from `mise.toml`:
+  * **Node.js**: `24`
+  * **pnpm**: `12`
+  * **Rust**: `stable` (edition 2024 needs `>=1.85`)
 * **macOS**: macOS 11+ (Big Sur or newer)
 
 ### Development Commands
