@@ -247,12 +247,12 @@ github-monitor/
 #### Project Setup
 - [x] Initialize Tauri v2 project structure.
 - [x] Add `mise.toml` (Node 24, pnpm 12, Rust stable).
-- [ ] Set `packageManager` in `package.json` to match the pnpm version.
-- [ ] Update all dependencies (npm and Cargo) to current versions.
-- [ ] Enable the `tray-icon` feature on `tauri` in `Cargo.toml`.
-- [ ] Hide the Dock icon (`ActivationPolicy::Accessory`) and set the main window to `visible: false`.
-- [ ] Set `app.withGlobalTauri: false` (the bridge imports `@tauri-apps/api`).
-- [ ] Replace `app.security.csp: null` with a real CSP.
+- [x] Set `packageManager` in `package.json` to match the pnpm version.
+- [x] Update all dependencies (npm and Cargo) to current versions.
+- [x] Enable the `tray-icon` feature on `tauri` in `Cargo.toml`.
+- [x] Hide the Dock icon (`ActivationPolicy::Accessory`) and set the main window to `visible: false`.
+- [x] Set `app.withGlobalTauri: false` (the bridge imports `@tauri-apps/api`).
+- [x] Replace `app.security.csp: null` with a real CSP.
 - [ ] Add plugin permissions to the existing `src-tauri/capabilities/default.json` as each plugin is integrated (`opener:default`, `notification:default`, `autostart:default`, `updater:default`, `process:allow-restart`, `store:default`). App-defined commands are allowed by default.
 
 #### Backend & Rust Monitor (`src-tauri/`)
