@@ -249,6 +249,7 @@ github-monitor/
 - [x] Add `mise.toml` (Node 24, pnpm 12, Rust stable).
 - [x] Set `packageManager` in `package.json` to match the pnpm version.
 - [x] Update all dependencies (npm and Cargo) to current versions.
+- [x] Pin all direct dependencies to exact versions (`save-exact=true` in `.npmrc`; `=x.y.z` in `Cargo.toml`). Bump deliberately; lockfiles cover transitive deps.
 - [x] Enable the `tray-icon` feature on `tauri` in `Cargo.toml`.
 - [x] Hide the Dock icon (`ActivationPolicy::Accessory`) and set the main window to `visible: false`.
 - [x] Set `app.withGlobalTauri: false` (the bridge imports `@tauri-apps/api`).
