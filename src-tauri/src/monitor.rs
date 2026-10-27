@@ -9,14 +9,16 @@ use crate::{
     tray,
 };
 
-const SUMMARY_URL: &str = "https://www.githubstatus.com/api/v2/summary.json";
+const DEFAULT_SUMMARY_URL: &str = "https://www.githubstatus.com/api/v2/summary.json";
+/// Overrides the status endpoint, e.g. to point at a local mock when testing notifications.
+const SUMMARY_URL_ENV: &str = "GITHUB_MONITOR_SUMMARY_URL";
 const POLL_INTERVAL: Duration = Duration::from_secs(60);
 
 pub type SharedMonitor = Mutex<AppStatusState>;
 
-async fn fetch(client: &reqwest::Client) -> reqwest::Result<GitHubStatusSummary> {
+async fn fetch(client: &reqwest::Client, url: &str) -> reqwest::Result<GitHubStatusSummary> {
     client
-        .get(SUMMARY_URL)
+        .get(url)
         .send()
         .await?
         .error_for_status()?
@@ -46,12 +48,16 @@ fn notify(app: &AppHandle, to: OverallStatus) {
 /// Polls the status API forever, updating shared state and the tray.
 pub fn spawn(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
+        let url = std::env::var(SUMMARY_URL_ENV).unwrap_or_else(|_| DEFAULT_SUMMARY_URL.into());
+        if url != DEFAULT_SUMMARY_URL {
+            log::warn!("using status endpoint override: {url}");
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
             .expect("failed to build HTTP client");
         loop {
-            let result = fetch(&client).await;
+            let result = fetch(&client, &url).await;
             if let Err(e) = &result {
                 log::warn!("status fetch failed: {e}");
             }

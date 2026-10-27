@@ -376,6 +376,14 @@ github-monitor/
 
 ### Development Commands
 
+> **Testing notifications**: set `GITHUB_MONITOR_SUMMARY_URL` to point the monitor at a local mock, then edit the served `summary.json` (`status.indicator`: `none` / `minor` / `major`) to trigger changes:
+> ```bash
+> mkdir /tmp/mock && cd /tmp/mock   # put a copy of a real summary.json here
+> python3 -m http.server 8000
+> GITHUB_MONITOR_SUMMARY_URL=http://localhost:8000/summary.json pnpm tauri dev
+> ```
+> Notifications only display from a bundled app: run `pnpm tauri build`, then launch `src-tauri/target/release/bundle/macos/github-monitor.app/Contents/MacOS/github-monitor` with the same variable.
+
 ```bash
 # Install dependencies
 pnpm install
