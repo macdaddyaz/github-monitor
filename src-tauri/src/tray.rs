@@ -58,13 +58,15 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
 
 fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     match event.id().as_ref() {
-        ID_STATUS => {
-            if let Err(e) = app.opener().open_url(STATUS_PAGE, None::<&str>) {
-                log::error!("failed to open status page: {e}");
-            }
-        }
+        ID_STATUS => open_status_page(app),
         ID_QUIT => app.exit(0),
         _ => {}
+    }
+}
+
+pub fn open_status_page(app: &AppHandle) {
+    if let Err(e) = app.opener().open_url(STATUS_PAGE, None::<&str>) {
+        log::error!("failed to open status page: {e}");
     }
 }
 
