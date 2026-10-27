@@ -65,7 +65,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     match event.id().as_ref() {
         ID_STATUS => {
             if let Err(e) = app.opener().open_url(STATUS_PAGE, None::<&str>) {
-                eprintln!("failed to open status page: {e}");
+                log::error!("failed to open status page: {e}");
             }
         }
         ID_QUIT => app.exit(0),
