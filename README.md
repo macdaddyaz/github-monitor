@@ -168,7 +168,7 @@ github-monitor/
   * The first successful fetch sets the baseline without notifying.
   * Triggers native macOS notification when the overall status shifts (e.g. `Healthy` ➔ `Degraded`).
   * Notification text: *"GitHub Status Changed: Service is now Degraded."*
-  * **Open question (research)**: Can clicking the notification open the status page? `tauri-plugin-notification` documents actions and `onAction` ([docs](https://v2.tauri.app/reference/javascript/notification/)); confirm desktop/macOS support before promising click-through. Notifications only display correctly from a bundled app, not `tauri dev`.
+  * **Click-through**: `tauri-plugin-notification` 2.7 reports a click (`tap`) to Rust handlers via `Notification::on_action` on macOS "as far as the notification server reports it", so a click opens the status page. Still to verify on a bundled app. Notifications only display correctly from a bundled app, not `tauri dev`.
 
 ---
 
@@ -280,10 +280,10 @@ github-monitor/
   - [ ] Integrate `tauri-plugin-autostart`.
   - [ ] Add menu item "Start when logging in" (checkbox item); initial state from `is_enabled()`.
   - [ ] Toggle startup item on/off on menu click.
-- [ ] Implement macOS Notifications (in `monitor.rs`):
-  - [ ] Integrate `tauri-plugin-notification`.
-  - [ ] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
-  - [ ] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click.
+- [x] Implement macOS Notifications (in `monitor.rs`):
+  - [x] Integrate `tauri-plugin-notification`.
+  - [x] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
+  - [x] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click. (Rust `on_action` `tap` handler opens the status page; manual verification pending.)
 
 #### Auto-Updates (`src-tauri/`)
 - [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).

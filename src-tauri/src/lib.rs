@@ -27,11 +27,13 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             app.manage(monitor::SharedMonitor::default());
             tray::init(app.handle())?;
+            monitor::init_notifications(app.handle())?;
             monitor::spawn(app.handle().clone());
             Ok(())
         })
