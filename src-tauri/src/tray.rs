@@ -4,7 +4,7 @@ use tauri::{
     image::Image,
     menu::{IconMenuItem, Menu, MenuEvent, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
-    AppHandle, Manager, Theme, Wry,
+    AppHandle, Manager, Wry,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -23,15 +23,10 @@ macro_rules! png {
 struct Tray {
     icon: TrayIcon,
     status_item: IconMenuItem<Wry>,
-    /// (status, dark menubar?)
-    state: Mutex<(OverallStatus, bool)>,
+    status: Mutex<OverallStatus>,
 }
 
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
-    let dark = app
-        .get_webview_window("main")
-        .and_then(|w| w.theme().ok())
-        == Some(Theme::Dark);
     let status_item = IconMenuItem::with_id(
         app,
         ID_STATUS,
@@ -55,7 +50,7 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     app.manage(Tray {
         icon,
         status_item,
-        state: Mutex::new((OverallStatus::Unknown, dark)),
+        status: Mutex::new(OverallStatus::Unknown),
     });
     apply(app);
     Ok(())
@@ -74,34 +69,25 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
 }
 
 pub fn set_status(app: &AppHandle, status: OverallStatus) {
-    update(app, |s| s.0 = status);
-}
-
-pub fn set_theme(app: &AppHandle, theme: Theme) {
-    update(app, |s| s.1 = theme == Theme::Dark);
-}
-
-fn update(app: &AppHandle, f: impl FnOnce(&mut (OverallStatus, bool))) {
-    if let Some(tray) = app.try_state::<Tray>() {
-        f(&mut tray.state.lock().unwrap());
+    if app.try_state::<Tray>().is_some() {
+        *app.state::<Tray>().status.lock().unwrap() = status;
         apply(app);
     }
 }
 
+/// Tray icons are template images so macOS tints them to match the menubar; the badge
+/// shape carries the status. Color lives on the menu item's dot instead.
 fn apply(app: &AppHandle) {
     let tray = app.state::<Tray>();
-    let (status, dark) = *tray.state.lock().unwrap();
-    let (icon, dot, template) = match (status, dark) {
-        (OverallStatus::Healthy, _) => (png!("tray-healthy"), png!("dot-green"), true),
-        (OverallStatus::Degraded, false) => (png!("tray-degraded-light"), png!("dot-yellow"), false),
-        (OverallStatus::Degraded, true) => (png!("tray-degraded-dark"), png!("dot-yellow"), false),
-        (OverallStatus::Unhealthy, false) => (png!("tray-unhealthy-light"), png!("dot-red"), false),
-        (OverallStatus::Unhealthy, true) => (png!("tray-unhealthy-dark"), png!("dot-red"), false),
-        (OverallStatus::Unknown, false) => (png!("tray-unknown-light"), png!("dot-gray"), false),
-        (OverallStatus::Unknown, true) => (png!("tray-unknown-dark"), png!("dot-gray"), false),
+    let status = *tray.status.lock().unwrap();
+    let (icon, dot) = match status {
+        OverallStatus::Healthy => (png!("tray-healthy"), png!("dot-green")),
+        OverallStatus::Degraded => (png!("tray-degraded"), png!("dot-yellow")),
+        OverallStatus::Unhealthy => (png!("tray-unhealthy"), png!("dot-red")),
+        OverallStatus::Unknown => (png!("tray-unknown"), png!("dot-gray")),
     };
     let _ = tray.icon.set_icon(Some(icon));
-    let _ = tray.icon.set_icon_as_template(template);
+    let _ = tray.icon.set_icon_as_template(true);
     let _ = tray.status_item.set_icon(Some(dot));
     let _ = tray
         .status_item
