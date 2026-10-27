@@ -33,7 +33,7 @@ pub fn spawn(app: AppHandle) {
         loop {
             let result = fetch(&client).await;
             if let Err(e) = &result {
-                eprintln!("status fetch failed: {e}");
+                log::warn!("status fetch failed: {e}");
             }
             let monitor = app.state::<SharedMonitor>();
             let (change, current) = {
@@ -41,8 +41,9 @@ pub fn spawn(app: AppHandle) {
                 (state.apply(result, Utc::now()), state.current)
             };
             if let Some((from, to)) = change {
-                eprintln!("status changed: {} -> {}", from.label(), to.label());
+                log::info!("status changed: {} -> {}", from.label(), to.label());
             }
+            log::debug!("status: {}", current.label());
             tray::set_status(&app, current);
             tokio::time::sleep(POLL_INTERVAL).await;
         }
