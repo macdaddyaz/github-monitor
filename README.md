@@ -82,6 +82,11 @@ github-monitor/
 ├── package.json
 ├── pnpm-lock.yaml
 ├── mise.toml                     # Pinned Node, pnpm, Rust toolchain
+├── .github/
+│   ├── dependabot.yml            # Weekly npm / cargo / Actions updates (deps are pinned exactly)
+│   └── workflows/
+│       ├── ci.yml                # PR + main checks
+│       └── release.yml           # Tag-triggered universal macOS build + GitHub release
 ├── tsconfig.json
 ├── vite.config.ts                # Vite + @tailwindcss/vite + Vitest (`test` key)
 ├── index.html
@@ -285,13 +290,20 @@ github-monitor/
   - [x] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
   - [x] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click. (Rust `on_action` `tap` handler opens the status page; manual verification pending.)
 
+#### CI/CD (`.github/`)
+- [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS.
+- [x] `release.yml`: on `v*` tags, verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `universal-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
+- [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
+- [x] Third-party Actions pinned to commit SHAs.
+- [x] Bump version to `0.2.0`.
+
 #### Auto-Updates (`src-tauri/`)
 - [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).
 - [ ] Generate updater signing keypair (`pnpm tauri signer generate`); store private key + password as CI secrets.
 - [ ] Configure `tauri.conf.json`: `bundle.createUpdaterArtifacts: true`, `plugins.updater.pubkey`, and `plugins.updater.endpoints` (GitHub Releases `latest.json`).
 - [ ] Check for updates on launch and periodically (e.g. every 24h) in the background.
 - [ ] Add tray menu item `Check for updates…` (between autostart and `Quit`); prompt to install and relaunch when an update is found.
-- [ ] Publish signed release artifacts and `latest.json` via GitHub Actions on version tag.
+- [ ] Publish `latest.json` and updater signatures via GitHub Actions on version tag (the release workflow already builds and publishes the app; this adds the updater artifacts).
 
 ---
 
@@ -331,8 +343,8 @@ github-monitor/
 - [ ] Write Vitest tests for `<component-list>` data binding and filtering.
 
 #### Release Signing & Distribution
-- [ ] Sign the app with an Apple Developer ID certificate and notarize it in CI (avoids Gatekeeper blocking first installs).
-- [ ] Build `universal-apple-darwin` so `latest.json` covers both `darwin-aarch64` and `darwin-x86_64`.
+- [ ] Obtain an Apple Developer ID certificate and add the repo secrets below; `release.yml` then signs and notarizes automatically (avoids Gatekeeper blocking first installs).
+- [x] Build `universal-apple-darwin` so `latest.json` covers both `darwin-aarch64` and `darwin-x86_64`.
 
 ---
 
@@ -400,3 +412,13 @@ pnpm tauri dev
 # Build production macOS binary (.app / .dmg)
 pnpm tauri build
 ```
+
+---
+
+## 🚢 Releasing
+
+1. Bump the version to the same value in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` (and run `cargo check` to update `Cargo.lock`); merge to `main`.
+2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. Use a suffix such as `v0.3.0-alpha.1` for a pre-release.
+3. `release.yml` verifies the tag against all three versions, builds the universal macOS app, and publishes the GitHub release with the `.dmg`.
+
+**Signing secrets** (repo Settings → Secrets and variables → Actions; without them the build is unsigned and Gatekeeper will block it on other Macs): `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.

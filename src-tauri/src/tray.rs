@@ -1,10 +1,10 @@
 use std::sync::Mutex;
 
 use tauri::{
+    AppHandle, Manager, Wry,
     image::Image,
     menu::{IconMenuItem, Menu, MenuEvent, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
-    AppHandle, Manager, Wry,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -60,7 +60,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     match event.id().as_ref() {
         ID_STATUS => open_status_page(app),
         ID_QUIT => app.exit(0),
-        _ => {}
+        _ => {},
     }
 }
 

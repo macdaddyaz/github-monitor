@@ -159,9 +159,18 @@ mod tests {
 
     #[test]
     fn maps_indicators() {
-        assert_eq!(OverallStatus::from(StatusIndicator::None), OverallStatus::Healthy);
-        assert_eq!(OverallStatus::from(StatusIndicator::Minor), OverallStatus::Degraded);
-        assert_eq!(OverallStatus::from(StatusIndicator::Critical), OverallStatus::Unhealthy);
+        assert_eq!(
+            OverallStatus::from(StatusIndicator::None),
+            OverallStatus::Healthy
+        );
+        assert_eq!(
+            OverallStatus::from(StatusIndicator::Minor),
+            OverallStatus::Degraded
+        );
+        assert_eq!(
+            OverallStatus::from(StatusIndicator::Critical),
+            OverallStatus::Unhealthy
+        );
     }
 
     #[test]
@@ -188,7 +197,11 @@ mod tests {
         let inc = |id: &str, ts: &str| {
             format!(r#"{{"id":"{id}","name":"n","status":"investigating","created_at":"{ts}"}}"#)
         };
-        let incidents = format!("{},{}", inc("1", "2026-01-01T10:00:00Z"), inc("2", "2026-01-01T09:00:00Z"));
+        let incidents = format!(
+            "{},{}",
+            inc("1", "2026-01-01T10:00:00Z"),
+            inc("2", "2026-01-01T09:00:00Z")
+        );
         s.apply::<()>(Ok(summary("minor", &incidents)), t);
         assert_eq!(s.incident_start(), Some(at("2026-01-01T09:00:00Z")));
         s.apply::<()>(Ok(summary("none", "")), t);
