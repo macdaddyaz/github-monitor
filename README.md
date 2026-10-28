@@ -291,7 +291,7 @@ github-monitor/
   - [x] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click. (Rust `on_action` `tap` handler opens the status page; manual verification pending.)
 
 #### CI/CD (`.github/`)
-- [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS.
+- [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS (against an empty `dist/`; the frontend is built once, in its own job).
 - [x] `release.yml`: on `v*` tags, verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `universal-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
 - [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
 - [x] Third-party Actions pinned to commit SHAs.
