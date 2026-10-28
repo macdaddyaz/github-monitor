@@ -295,7 +295,7 @@ github-monitor/
 - [x] `release.yml`: on version tags (`0.2.0`, `0.3.0-alpha.1`; no `v` prefix), validate the tag (semver, and the tagged commit must be on `main`), inject it as the app version, then build `aarch64-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
 - [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
 - [x] Third-party Actions pinned to commit SHAs.
-- [x] Tag-driven versioning: `package.json` has no `version`, `tauri.conf.json` has none, and `Cargo.toml` holds the placeholder `0.0.0`. The release workflow sets the real version from the tag.
+- [x] Tag-driven versioning: `package.json` has no `version`, `tauri.conf.json` has none, and `Cargo.toml` holds the placeholder `0.0.0-dev`. The release workflow sets the real version from the tag.
 
 #### Auto-Updates (`src-tauri/`)
 - [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).
@@ -417,10 +417,10 @@ pnpm tauri build
 
 ## 🚢 Releasing
 
-The git tag is the single source of truth for the app version. The repo holds no real version, so local `pnpm tauri dev/build` report `0.0.0` (and the updater, when added, must skip debug builds).
+The git tag is the single source of truth for the app version. The repo holds no real version, so local `pnpm tauri dev/build` report `0.0.0-dev` (and the updater, when added, must skip debug builds).
 
 1. Merge everything to `main` and wait for CI to pass.
 2. Tag the commit on `main` and push: `git tag 0.2.0 && git push origin 0.2.0`. The tag has no `v` prefix; the release is titled `v0.2.0`. Use a suffix such as `0.3.0-alpha.1` for a pre-release.
-3. `release.yml` checks that the tag is valid semver and that the tagged commit is on `main`, writes the tag into `tauri.conf.json` on the runner, builds the Apple Silicon macOS app, and publishes the GitHub release with the `.dmg`. The version in the bundle's `Info.plist` and the app's `package_info().version` come from that injected value; don't use `env!("CARGO_PKG_VERSION")`, which stays `0.0.0`.
+3. `release.yml` checks that the tag is valid semver and that the tagged commit is on `main`, writes the tag into `tauri.conf.json` on the runner, builds the Apple Silicon macOS app, and publishes the GitHub release with the `.dmg`. The version in the bundle's `Info.plist` and the app's `package_info().version` come from that injected value; don't use `env!("CARGO_PKG_VERSION")`, which stays `0.0.0-dev`.
 
 **Signing secrets** (repo Settings → Secrets and variables → Actions; without them the build is unsigned and Gatekeeper will block it on other Macs): `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.
