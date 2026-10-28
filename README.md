@@ -292,7 +292,7 @@ github-monitor/
 
 #### CI/CD (`.github/`)
 - [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS (against an empty `dist/`; the frontend is built once, in its own job).
-- [x] `release.yml`: on `v*` tags, verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `aarch64-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
+- [x] `release.yml`: on version tags (`0.2.0`, `0.3.0-alpha.1`; no `v` prefix), verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `aarch64-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
 - [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
 - [x] Third-party Actions pinned to commit SHAs.
 - [x] Bump version to `0.2.0`.
@@ -418,7 +418,7 @@ pnpm tauri build
 ## 🚢 Releasing
 
 1. Bump the version to the same value in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` (and run `cargo check` to update `Cargo.lock`); merge to `main`.
-2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. Use a suffix such as `v0.3.0-alpha.1` for a pre-release.
+2. Tag and push: `git tag 0.2.0 && git push origin 0.2.0`. The tag has no `v` prefix and must equal the version exactly; the release is titled `v0.2.0`. Use a suffix such as `0.3.0-alpha.1` for a pre-release.
 3. `release.yml` verifies the tag against all three versions, builds the Apple Silicon macOS app, and publishes the GitHub release with the `.dmg`.
 
 **Signing secrets** (repo Settings → Secrets and variables → Actions; without them the build is unsigned and Gatekeeper will block it on other Macs): `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.

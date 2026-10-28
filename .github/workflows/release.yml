@@ -1,9 +1,10 @@
 name: Release
 
-# Push a tag like v0.2.0 or v0.2.0-alpha.1. Tags with a hyphen are published as pre-releases.
+# Push a tag like 0.2.0 or 0.3.0-alpha.1 (no `v` prefix; the release itself is titled v0.2.0).
+# Tags with a hyphen are published as pre-releases.
 on:
   push:
-    tags: ['v*']
+    tags: ['[0-9]+.[0-9]+.[0-9]+*']
 
 permissions:
   contents: write
@@ -11,12 +12,13 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    name: "Release Tauri app"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Verify tag matches app version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="$GITHUB_REF_NAME"
           for found in \
             "package.json $(jq -r .version package.json)" \
             "src-tauri/tauri.conf.json $(jq -r .version src-tauri/tauri.conf.json)" \
@@ -58,7 +60,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: GitHub Monitor ${{ github.ref_name }}
+          releaseName: GitHub Monitor v${{ github.ref_name }}
           releaseBody: See the assets below to download the macOS (Apple Silicon) build.
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: --target aarch64-apple-darwin
