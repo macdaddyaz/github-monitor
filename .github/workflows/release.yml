@@ -1,0 +1,83 @@
+name: Release
+
+# Push a tag like 0.2.0 or 0.3.0-alpha.1 (no `v` prefix; the release itself is titled v0.2.0).
+# The tag becomes the app version. Tags with a hyphen are published as pre-releases.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    name: "Release Tauri app"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history, for the on-main check below
+
+      # The tag is the single source of truth for the app version.
+      - name: Validate tag
+        run: |
+          if ! echo "$GITHUB_REF_NAME" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not a semver version (e.g. 0.2.0 or 0.3.0-alpha.1)"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit $GITHUB_SHA is not on main"
+            exit 1
+          fi
+
+      - name: Set app version from tag
+        run: |
+          jq --arg v "$GITHUB_REF_NAME" '.version = $v' src-tauri/tauri.conf.json > /tmp/tauri.conf.json
+          mv /tmp/tauri.conf.json src-tauri/tauri.conf.json
+
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          install_args: node pnpm rust
+      - run: rustup target add aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+
+      # Sign and notarize only when the Apple secrets are configured; otherwise build unsigned.
+      - name: Configure Apple signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "::warning::Apple signing secrets not set; building an unsigned app"
+            exit 0
+          fi
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            echo "$v=${!v}" >> "$GITHUB_ENV"
+          done
+        shell: bash
+
+      # Release Drafter's draft is normally published first (which creates this tag); tauri-action
+      # then attaches the build to that release and keeps its notes. If no release exists yet,
+      # it creates one.
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: v${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: --target aarch64-apple-darwin
+
+      # tauri-action only sets prerelease when it creates the release, so enforce it here.
+      - name: Mark pre-release
+        if: contains(github.ref_name, '-')
+        run: gh release edit "$GITHUB_REF_NAME" --prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

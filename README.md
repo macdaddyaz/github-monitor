@@ -82,6 +82,13 @@ github-monitor/
 ├── package.json
 ├── pnpm-lock.yaml
 ├── mise.toml                     # Pinned Node, pnpm, Rust toolchain
+├── .github/
+│   ├── release-drafter.yml       # Release Drafter categories, version rules, PR autolabeler
+│   ├── dependabot.yml            # Weekly npm / cargo / Actions updates (deps are pinned exactly)
+│   └── workflows/
+│       ├── ci.yml                # PR + main checks
+│       ├── release-drafter.yml   # Autolabels PRs; keeps the draft release and next version current
+│       └── release.yml           # Tag-triggered Apple Silicon macOS build + GitHub release
 ├── tsconfig.json
 ├── vite.config.ts                # Vite + @tailwindcss/vite + Vitest (`test` key)
 ├── index.html
@@ -285,13 +292,21 @@ github-monitor/
   - [x] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
   - [x] Research: confirm whether notification click actions work on macOS desktop; if so, open the status page on click. (Rust `on_action` `tap` handler opens the status page; manual verification pending.)
 
+#### CI/CD (`.github/`)
+- [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS (against an empty `dist/`; the frontend is built once, in its own job).
+- [x] `release.yml`: on version tags (`0.2.0`, `0.3.0-alpha.1`; no `v` prefix), validate the tag (semver, and the tagged commit must be on `main`), inject it as the app version, then build `aarch64-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
+- [x] `release-drafter.yml` (+ config): labels PRs from Conventional Commit titles, keeps a draft release with grouped notes, and infers the next major/minor/patch version from the labels. Publishing the draft creates the tag that triggers `release.yml`.
+- [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
+- [x] Third-party Actions pinned to commit SHAs.
+- [x] Tag-driven versioning: `package.json` has no `version`, `tauri.conf.json` has none, and `Cargo.toml` holds the placeholder `0.0.0-dev`. The release workflow sets the real version from the tag.
+
 #### Auto-Updates (`src-tauri/`)
 - [ ] Integrate `tauri-plugin-updater` and `tauri-plugin-process` (for relaunch after install).
 - [ ] Generate updater signing keypair (`pnpm tauri signer generate`); store private key + password as CI secrets.
 - [ ] Configure `tauri.conf.json`: `bundle.createUpdaterArtifacts: true`, `plugins.updater.pubkey`, and `plugins.updater.endpoints` (GitHub Releases `latest.json`).
 - [ ] Check for updates on launch and periodically (e.g. every 24h) in the background.
 - [ ] Add tray menu item `Check for updates…` (between autostart and `Quit`); prompt to install and relaunch when an update is found.
-- [ ] Publish signed release artifacts and `latest.json` via GitHub Actions on version tag.
+- [ ] Publish `latest.json` and updater signatures via GitHub Actions on version tag (the release workflow already builds and publishes the app; this adds the updater artifacts).
 
 ---
 
@@ -331,8 +346,8 @@ github-monitor/
 - [ ] Write Vitest tests for `<component-list>` data binding and filtering.
 
 #### Release Signing & Distribution
-- [ ] Sign the app with an Apple Developer ID certificate and notarize it in CI (avoids Gatekeeper blocking first installs).
-- [ ] Build `universal-apple-darwin` so `latest.json` covers both `darwin-aarch64` and `darwin-x86_64`.
+- [ ] Obtain an Apple Developer ID certificate and add the repo secrets below; `release.yml` then signs and notarizes automatically (avoids Gatekeeper blocking first installs).
+- [x] Target Apple Silicon only (`aarch64-apple-darwin`); Intel Macs are intentionally unsupported, so `latest.json` needs only the `darwin-aarch64` platform.
 
 ---
 
@@ -372,7 +387,7 @@ github-monitor/
   * **Node.js**: `24`
   * **pnpm**: `12`
   * **Rust**: `stable` (edition 2024 needs `>=1.85`)
-* **macOS**: macOS 11+ (Big Sur or newer)
+* **macOS**: macOS 11+ (Big Sur or newer) on Apple Silicon (Intel Macs are not supported)
 
 ### Development Commands
 
@@ -400,3 +415,17 @@ pnpm tauri dev
 # Build production macOS binary (.app / .dmg)
 pnpm tauri build
 ```
+
+---
+
+## 🚢 Releasing
+
+The git tag is the single source of truth for the app version. The repo holds no real version, so local `pnpm tauri dev/build` report `0.0.0-dev` (and the updater, when added, must skip debug builds).
+
+1. **Merge PRs with Conventional Commit titles** (`feat:`, `fix:`, `docs:`, `ci:`, `chore:`; `feat!:` or a `BREAKING CHANGE:` body for breaking changes). Autolabeler labels each PR from its title, and [Release Drafter](https://github.com/release-drafter/release-drafter) keeps a **draft release** on GitHub up to date with grouped notes and the next version: `breaking` → major, `feature` → minor, anything else → patch. Titles that aren't conventional count as patch changes. Note it reads PR titles and labels, not individual commits, so changes pushed straight to `main` are not included.
+2. **Review and publish the draft** under Releases. The proposed tag (`0.3.0`) and title (`v0.3.0`) can be edited, e.g. to `0.3.0-alpha.1` for a pre-release. Publishing creates the tag on `main`. (Pushing a tag by hand, `git tag 0.3.0 && git push origin 0.3.0`, also works.) The tag has no `v` prefix; the release title does.
+3. `release.yml` runs on the tag: checks it is valid semver and the tagged commit is on `main`, writes the tag into `tauri.conf.json` on the runner, builds the Apple Silicon macOS app, and attaches the `.dmg` to the release, keeping the drafted notes. Hyphenated tags are marked pre-release. The `.dmg` appears a few minutes after publishing. The version in the bundle's `Info.plist` and the app's `package_info().version` come from the injected value; don't use `env!("CARGO_PKG_VERSION")`, which stays `0.0.0-dev`.
+
+While the app is pre-1.0, a breaking change will propose `1.0.0`; edit the draft's tag if you want `0.x` to stay pre-1.0.
+
+**Signing secrets** (repo Settings → Secrets and variables → Actions; without them the build is unsigned and Gatekeeper will block it on other Macs): `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.

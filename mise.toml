@@ -2,4 +2,4 @@
 codegraph = "latest"
 node = "24"
 pnpm = "12"
-rust = "stable"
+rust = { version = "stable", components = "rustfmt,clippy" }
