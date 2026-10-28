@@ -63,21 +63,26 @@ jobs:
           done
         shell: bash
 
-      # Release Drafter's draft is normally published first (which creates this tag); tauri-action
-      # then attaches the build to that release and keeps its notes. If no release exists yet,
-      # it creates one.
+      # Release Drafter's draft is normally published first (which creates this tag). Look the
+      # release up (or create it for a hand-pushed tag) and pass its id to tauri-action. Giving
+      # tauri-action a tagName instead makes it overwrite the release's name and body.
+      - name: Find or create release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pre=""
+          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            [ -z "$pre" ] || gh release edit "$GITHUB_REF_NAME" $pre
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "v$GITHUB_REF_NAME" --generate-notes $pre
+          fi
+          echo "id=$(gh release view "$GITHUB_REF_NAME" --json databaseId -q .databaseId)" >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: v${{ github.ref_name }}
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          releaseId: ${{ steps.release.outputs.id }}
           args: --target aarch64-apple-darwin
-
-      # tauri-action only sets prerelease when it creates the release, so enforce it here.
-      - name: Mark pre-release
-        if: contains(github.ref_name, '-')
-        run: gh release edit "$GITHUB_REF_NAME" --prerelease
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
