@@ -28,7 +28,7 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
           install_args: node pnpm rust
-      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: rustup target add aarch64-apple-darwin
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
@@ -59,6 +59,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: GitHub Monitor ${{ github.ref_name }}
-          releaseBody: See the assets below to download the macOS (universal) build.
+          releaseBody: See the assets below to download the macOS (Apple Silicon) build.
           prerelease: ${{ contains(github.ref_name, '-') }}
-          args: --target universal-apple-darwin
+          args: --target aarch64-apple-darwin

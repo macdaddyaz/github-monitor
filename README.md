@@ -86,7 +86,7 @@ github-monitor/
 │   ├── dependabot.yml            # Weekly npm / cargo / Actions updates (deps are pinned exactly)
 │   └── workflows/
 │       ├── ci.yml                # PR + main checks
-│       └── release.yml           # Tag-triggered universal macOS build + GitHub release
+│       └── release.yml           # Tag-triggered Apple Silicon macOS build + GitHub release
 ├── tsconfig.json
 ├── vite.config.ts                # Vite + @tailwindcss/vite + Vitest (`test` key)
 ├── index.html
@@ -292,7 +292,7 @@ github-monitor/
 
 #### CI/CD (`.github/`)
 - [x] `ci.yml`: on PRs and pushes to `main`, run `pnpm build` (tsc + vite) on Ubuntu, and `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` on macOS (against an empty `dist/`; the frontend is built once, in its own job).
-- [x] `release.yml`: on `v*` tags, verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `universal-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
+- [x] `release.yml`: on `v*` tags, verify the tag matches the version in `package.json`, `tauri.conf.json`, and `Cargo.toml`, then build `aarch64-apple-darwin` and publish a GitHub release (tags containing `-` are pre-releases). Signs and notarizes when the Apple secrets are set.
 - [x] `dependabot.yml`: weekly grouped updates for npm, cargo, and GitHub Actions (direct deps are pinned exactly, so this is how they move).
 - [x] Third-party Actions pinned to commit SHAs.
 - [x] Bump version to `0.2.0`.
@@ -344,7 +344,7 @@ github-monitor/
 
 #### Release Signing & Distribution
 - [ ] Obtain an Apple Developer ID certificate and add the repo secrets below; `release.yml` then signs and notarizes automatically (avoids Gatekeeper blocking first installs).
-- [x] Build `universal-apple-darwin` so `latest.json` covers both `darwin-aarch64` and `darwin-x86_64`.
+- [x] Target Apple Silicon only (`aarch64-apple-darwin`); Intel Macs are intentionally unsupported, so `latest.json` needs only the `darwin-aarch64` platform.
 
 ---
 
@@ -384,7 +384,7 @@ github-monitor/
   * **Node.js**: `24`
   * **pnpm**: `12`
   * **Rust**: `stable` (edition 2024 needs `>=1.85`)
-* **macOS**: macOS 11+ (Big Sur or newer)
+* **macOS**: macOS 11+ (Big Sur or newer) on Apple Silicon (Intel Macs are not supported)
 
 ### Development Commands
 
@@ -419,6 +419,6 @@ pnpm tauri build
 
 1. Bump the version to the same value in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` (and run `cargo check` to update `Cargo.lock`); merge to `main`.
 2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`. Use a suffix such as `v0.3.0-alpha.1` for a pre-release.
-3. `release.yml` verifies the tag against all three versions, builds the universal macOS app, and publishes the GitHub release with the `.dmg`.
+3. `release.yml` verifies the tag against all three versions, builds the Apple Silicon macOS app, and publishes the GitHub release with the `.dmg`.
 
 **Signing secrets** (repo Settings → Secrets and variables → Actions; without them the build is unsigned and Gatekeeper will block it on other Macs): `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.
