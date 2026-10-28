@@ -1399,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "github-monitor"
-version = "0.2.0"
+version = "0.0.0"
 dependencies = [
  "chrono",
  "log",
