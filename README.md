@@ -397,7 +397,7 @@ github-monitor/
 > python3 -m http.server 8000
 > GITHUB_MONITOR_SUMMARY_URL=http://localhost:8000/summary.json pnpm tauri dev
 > ```
-> Notifications only display from a bundled app: run `pnpm tauri build`, then launch `src-tauri/target/release/bundle/macos/github-monitor.app/Contents/MacOS/github-monitor` with the same variable.
+> Notifications only display from a bundled app: run `pnpm tauri build`, then launch `src-tauri/target/release/bundle/macos/GitHub Status Monitor.app/Contents/MacOS/github-monitor` with the same variable.
 
 ```bash
 # Install dependencies

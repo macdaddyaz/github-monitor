@@ -2,7 +2,7 @@
 name = "github-monitor"
 # Placeholder: the release workflow injects the real version from the git tag.
 version = "0.0.0-dev"
-description = "A Tauri App"
+description = "macOS menubar monitor for GitHub status"
 authors = ["you"]
 edition = "2024"
 
