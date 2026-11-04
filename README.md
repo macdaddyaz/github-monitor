@@ -2,7 +2,7 @@
 
 This repository contains **GitHub Status Monitor**, a native macOS menubar and desktop dashboard application built with **Tauri**, **Rust**, **Lit (Web Components)**, **TypeScript**, **Tailwind CSS**, and **DaisyUI**.
 
-Below is the comprehensive architectural plan, implementation detailed specification, and complete task checklist for all three development phases.
+Below is the comprehensive architectural plan, implementation detailed specification, and complete task checklist for all four development phases.
 
 ---
 
@@ -67,6 +67,7 @@ Below is the comprehensive architectural plan, implementation detailed specifica
 | **Opening URLs** | `tauri-plugin-opener` (already installed) | Open status page in default browser |
 | **Auto-Updates** | `tauri-plugin-updater`, `tauri-plugin-process` | Signed in-app updates from GitHub Releases |
 | **Persistence** | `tauri-plugin-store` | Persistent user configuration store |
+| **Desktop Widgets** *(Phase 4, under evaluation)* | `tauri-plugin-widgets`, WidgetKit extension, `xcodegen` | macOS desktop / Notification Center status widgets |
 | **Frontend Framework**| Lit (`lit`) | Web Components UI library |
 | **Frontend Language** | TypeScript (`typescript`) | Typed frontend scripting |
 | **Styling & Theme** | Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`) + DaisyUI v5 (`daisyui`) | Responsive styling and light/dark theme modes |
@@ -218,6 +219,11 @@ github-monitor/
   * `<elapsed-timer>`: Custom timer component updating elapsed downtime string every minute.
 * Styling configured via Tailwind CSS v4 & DaisyUI theme variables (`data-theme`).
 
+#### 4. Branding & Iconography (to be researched)
+* **Why**: the menubar icons use the Octicons GitHub mark, which is MIT-licensed as artwork, but a license on the artwork is separate from **trademark** rules. The app window, Dock/Finder icon, and notification banners (which show the app icon) are more prominent and could read as an official GitHub product. The bundle currently still ships the Tauri scaffold's default app icon, so a real app icon is needed regardless.
+* **Research**: read GitHub's logo and trademark usage guidelines (and the Octicons license) to decide what is acceptable where: menubar status glyph, app icon, notification and window imagery, README/marketing. Also consider the **name** "GitHub Status Monitor" (nominative use, a "for GitHub" form, and an "unofficial / not affiliated with GitHub" disclaimer).
+* **Outcome**: either confirm the current usage with the guidelines cited here, or design original iconography (an app icon and status glyphs that evoke monitoring without reproducing the GitHub mark) and update `scripts/gen-tray-icons.sh` and the bundle icons.
+
 ---
 
 ### Phase 3: Persistent Settings & Themes
@@ -245,6 +251,39 @@ github-monitor/
   * Options: `System` (default), `Light`, `Dark`.
   * `Light` / `Dark` set DaisyUI root attribute `data-theme="light"` or `data-theme="dark"`.
   * `System` removes `data-theme`; DaisyUI follows `prefers-color-scheme` natively via `@plugin "daisyui" { themes: light --default, dark --prefersdark; }`.
+
+---
+
+### Phase 4: macOS Desktop Widgets (research spike, then implement if feasible)
+
+#### 1. Goal
+* Show GitHub status on the macOS desktop / Notification Center via **WidgetKit**:
+  * **Small**: overall status (icon + label) and elapsed downtime when non-healthy.
+  * **Medium / Large**: the same, plus the per-component list (Phase 2 filtering rules apply).
+* The Rust monitor already holds all of this state, so the app pushes it to the widget; the widget does no networking of its own.
+
+#### 2. Approach: `tauri-plugin-widgets`
+* [`tauri-plugin-widgets`](https://github.com/s00d/tauri-plugin-widgets) (MIT) describes widgets as one declarative JSON/IR config and ships a **Rust API** (`tauri_plugin_widgets::models::WidgetConfig`) for pushing updates from a background task. That fits our model: `monitor.rs` already runs without a webview.
+* macOS widgets cannot live in the Tauri binary. The plugin generates a **sidecar Xcode project** (`src-tauri/macos-widget/`, via `xcodegen`) that compiles a Widget Extension `.appex`; a `beforeBundleCommand` builds and signs it and `bundle.macOS.files` embeds it under `Contents/PlugIns/`.
+* Data reaches the extension through a shared file, selected by `plugins.widgets.transport`: `appGroup` (needs a real Team ID and an App Group, i.e. Developer ID signing) or `widgetContainer` (works ad-hoc, needs an unsandboxed host).
+
+#### 3. Known constraints and risks (from reading the plugin's docs; to be verified in the spike)
+* **Maturity**: young single-maintainer project (first release early 2026, v0.6.x, a few dozen stars). Pin an exact version (as with all deps) and budget for having to patch, vendor, or replace it.
+* **Install requirement**: widgets only appear from a built `.app` placed in `/Applications`; `pnpm tauri dev` cannot show them.
+* **Tooling**: needs full Xcode and `xcodegen` locally and on the release runner; adds a Swift build to the release pipeline.
+* **Signing**: shipping with `appGroup` needs Developer ID signing and a registered App Group, so it depends on the Phase 2 "Release Signing" item.
+* **Version**: the extension's bundle version must match the host app. The version now comes from the git tag (injected into `tauri.conf.json` at release time), so the extension build must receive the same value.
+* **Refresh budget**: Apple allows roughly 40-70 widget reloads per day. Push on status *changes*, not on every 60s poll (the plugin skips writes when the data is unchanged).
+* **OS support**: desktop widgets need macOS 14 (Sonoma) or later. This is higher than the app's stated minimum (macOS 11), so either accept that the widget feature is gated by OS version or raise the minimum.
+* **Sandboxing**: the extension is always sandboxed; with `widgetContainer` the host must **not** be sandboxed.
+
+#### 4. Go / no-go criteria for the spike
+Proceed to full implementation only if all of these hold; otherwise record findings here and stop (or fall back to a hand-written Swift extension without the plugin).
+1. A trivial widget appears in the widget gallery from a bundled app in `/Applications` (ad-hoc, `widgetContainer`).
+2. The Rust monitor can update it on a status change without a webview.
+3. The extension builds in CI on the release runner with the tag-derived version.
+4. It works with Developer ID signing and `appGroup`, and survives notarization.
+5. The macOS 14 requirement is acceptable.
 
 ---
 
@@ -345,6 +384,12 @@ github-monitor/
 - [ ] Write Vitest tests for `<elapsed-timer>` downtime calculation logic.
 - [ ] Write Vitest tests for `<component-list>` data binding and filtering.
 
+#### Branding & Iconography
+- [ ] Research GitHub's logo/trademark guidelines and the Octicons license for each use: menubar glyph, app icon, notification banners, window UI, README. Record what is allowed (with links) in this README.
+- [ ] Decide on the app name ("GitHub Status Monitor" vs. a "for GitHub" form) and add an unofficial/unaffiliated disclaimer where appropriate (README, About).
+- [ ] Replace the scaffold's default app icon (`src-tauri/icons/`) with an app icon that is clearly this project's own.
+- [ ] If the research says the GitHub mark is not acceptable beyond the menubar (or at all), design original status glyphs and app artwork; update `scripts/gen-tray-icons.sh`, the tray and dot icons, and the bundle icons.
+
 #### Release Signing & Distribution
 - [ ] Obtain an Apple Developer ID certificate and add the repo secrets below; `release.yml` then signs and notarizes automatically (avoids Gatekeeper blocking first installs).
 - [x] Target Apple Silicon only (`aarch64-apple-darwin`); Intel Macs are intentionally unsupported, so `latest.json` needs only the `darwin-aarch64` platform.
@@ -377,6 +422,25 @@ github-monitor/
   - [ ] `Light`: set `document.documentElement.setAttribute('data-theme', 'light')`.
   - [ ] `Dark`: set `document.documentElement.setAttribute('data-theme', 'dark')`.
   - [ ] `System`: `document.documentElement.removeAttribute('data-theme')`; DaisyUI follows `prefers-color-scheme` via `--prefersdark`.
+
+---
+
+### 🪟 Phase 4: macOS Desktop Widgets (spike, then implement if feasible)
+
+#### Research Spike
+- [ ] Add `tauri-plugin-widgets` (pinned exact version) and run `init-macos` on a throwaway branch.
+- [ ] Get a minimal widget showing in the gallery from a bundled `.app` in `/Applications` (ad-hoc signing, `widgetContainer` transport).
+- [ ] Verify the Rust API can push a `WidgetConfig` from the monitor loop, and measure reload behavior against the daily budget.
+- [ ] Verify the Swift extension builds on the release runner (Xcode + `xcodegen`) and takes its version from the git tag.
+- [ ] Verify Developer ID signing, App Group registration, `appGroup` transport, and notarization with the widget embedded.
+- [ ] Decide: go (continue below), fall back to a hand-written Swift extension, or no-go. Record the findings in this README.
+
+#### Implementation (only if the spike is a go)
+- [ ] Commit the sidecar project (`src-tauri/macos-widget/`) and `plugins.widgets` / bundle hooks in `tauri.conf.json`.
+- [ ] Build widget layouts: small (status + downtime) and medium/large (plus components); distinct looks for Healthy, Degraded, Unhealthy, Unknown (offline).
+- [ ] Add `widgets.rs`: map `AppStatusState` to a `WidgetConfig` and push it on every status change and on first launch; unit-test the mapping (including the Unknown/offline case).
+- [ ] Release pipeline: install `xcodegen`, build and sign the `.appex`, inject the tag version, embed and notarize; update `release.yml` and the timeout if needed.
+- [ ] Document the minimum macOS for widgets and the install-to-`/Applications` requirement; update Prerequisites and Releasing sections.
 
 ---
 
