@@ -219,6 +219,11 @@ github-monitor/
   * `<elapsed-timer>`: Custom timer component updating elapsed downtime string every minute.
 * Styling configured via Tailwind CSS v4 & DaisyUI theme variables (`data-theme`).
 
+#### 4. Branding & Iconography (to be researched)
+* **Why**: the menubar icons use the Octicons GitHub mark, which is MIT-licensed as artwork, but a license on the artwork is separate from **trademark** rules. The app window, Dock/Finder icon, and notification banners (which show the app icon) are more prominent and could read as an official GitHub product. The bundle currently still ships the Tauri scaffold's default app icon, so a real app icon is needed regardless.
+* **Research**: read GitHub's logo and trademark usage guidelines (and the Octicons license) to decide what is acceptable where: menubar status glyph, app icon, notification and window imagery, README/marketing. Also consider the **name** "GitHub Status Monitor" (nominative use, a "for GitHub" form, and an "unofficial / not affiliated with GitHub" disclaimer).
+* **Outcome**: either confirm the current usage with the guidelines cited here, or design original iconography (an app icon and status glyphs that evoke monitoring without reproducing the GitHub mark) and update `scripts/gen-tray-icons.sh` and the bundle icons.
+
 ---
 
 ### Phase 3: Persistent Settings & Themes
@@ -378,6 +383,12 @@ Proceed to full implementation only if all of these hold; otherwise record findi
 - [ ] Write Vitest tests for `<status-banner>` rendering states (`Healthy`, `Degraded`, `Unhealthy`, `Unknown`).
 - [ ] Write Vitest tests for `<elapsed-timer>` downtime calculation logic.
 - [ ] Write Vitest tests for `<component-list>` data binding and filtering.
+
+#### Branding & Iconography
+- [ ] Research GitHub's logo/trademark guidelines and the Octicons license for each use: menubar glyph, app icon, notification banners, window UI, README. Record what is allowed (with links) in this README.
+- [ ] Decide on the app name ("GitHub Status Monitor" vs. a "for GitHub" form) and add an unofficial/unaffiliated disclaimer where appropriate (README, About).
+- [ ] Replace the scaffold's default app icon (`src-tauri/icons/`) with an app icon that is clearly this project's own.
+- [ ] If the research says the GitHub mark is not acceptable beyond the menubar (or at all), design original status glyphs and app artwork; update `scripts/gen-tray-icons.sh`, the tray and dot icons, and the bundle icons.
 
 #### Release Signing & Distribution
 - [ ] Obtain an Apple Developer ID certificate and add the repo secrets below; `release.yml` then signs and notarizes automatically (avoids Gatekeeper blocking first installs).
