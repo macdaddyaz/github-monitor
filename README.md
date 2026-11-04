@@ -149,7 +149,7 @@ github-monitor/
   * Item 1: `GitHub status: Healthy` (or `Degraded`, `Unhealthy`, `Unknown`), as an `IconMenuItem` with a colored dot image (green / yellow / red / gray). This is the native `NSMenuItem` image mechanism, as used by Docker Desktop's "Engine running" items.
     * *Click handler*: Opens the status page for the selected region in the default browser via `tauri-plugin-opener`.
   * Item 2: Separator.
-  * Item 3: `Start when logging in` (Checkable menuItem).
+  * Item 3: `Start when logging in` (Checkable menuItem), followed by a separator.
     * Initial checked state read from `tauri-plugin-autostart` `is_enabled()` at startup.
     * *Click handler*: Toggles autostart via `tauri-plugin-autostart`.
   * Item 4: `Check for updates…`.
@@ -283,10 +283,10 @@ github-monitor/
   - [x] Status menu item as `IconMenuItem` with colored dot image; update text dynamically (`GitHub status: Healthy`, etc.).
 - [x] Implement Native Tray Menu click handlers:
   - [x] Clicking status item opens `https://www.githubstatus.com` via `tauri-plugin-opener`.
-- [ ] Implement autostart functionality (in `tray.rs`):
-  - [ ] Integrate `tauri-plugin-autostart`.
-  - [ ] Add menu item "Start when logging in" (checkbox item); initial state from `is_enabled()`.
-  - [ ] Toggle startup item on/off on menu click.
+- [x] Implement autostart functionality (in `tray.rs`):
+  - [x] Integrate `tauri-plugin-autostart` (macOS `LaunchAgent` launcher).
+  - [x] Add menu item "Start when logging in" (checkbox item); initial state from `is_enabled()`.
+  - [x] Toggle startup item on/off on menu click; the check reverts if enabling/disabling fails. Note: the login item points at the running binary, so toggling it from `pnpm tauri dev` registers the debug build; uncheck it to remove.
 - [x] Implement macOS Notifications (in `monitor.rs`):
   - [x] Integrate `tauri-plugin-notification`.
   - [x] Trigger alert when overall status changes between known states; first fetch sets baseline silently.
@@ -397,7 +397,7 @@ github-monitor/
 > python3 -m http.server 8000
 > GITHUB_MONITOR_SUMMARY_URL=http://localhost:8000/summary.json pnpm tauri dev
 > ```
-> Notifications only display from a bundled app: run `pnpm tauri build`, then launch `src-tauri/target/release/bundle/macos/github-monitor.app/Contents/MacOS/github-monitor` with the same variable.
+> Notifications only display from a bundled app: run `pnpm tauri build`, then launch `src-tauri/target/release/bundle/macos/GitHub Status Monitor.app/Contents/MacOS/GitHub Status Monitor` with the same variable.
 
 ```bash
 # Install dependencies

@@ -3,15 +3,17 @@ use std::sync::Mutex;
 use tauri::{
     AppHandle, Manager, Wry,
     image::Image,
-    menu::{IconMenuItem, Menu, MenuEvent, PredefinedMenuItem},
+    menu::{CheckMenuItem, IconMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     tray::{TrayIcon, TrayIconBuilder},
 };
+use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::models::OverallStatus;
 
 const STATUS_PAGE: &str = "https://www.githubstatus.com";
 const ID_STATUS: &str = "status";
+const ID_AUTOSTART: &str = "autostart";
 const ID_QUIT: &str = "quit";
 
 macro_rules! png {
@@ -23,6 +25,7 @@ macro_rules! png {
 struct Tray {
     icon: TrayIcon,
     status_item: IconMenuItem<Wry>,
+    autostart_item: CheckMenuItem<Wry>,
     status: Mutex<OverallStatus>,
 }
 
@@ -35,12 +38,26 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
         Some(png!("dot-gray")),
         None::<&str>,
     )?;
+    let autostart_enabled = app.autolaunch().is_enabled().unwrap_or_else(|e| {
+        log::warn!("failed to read autostart state: {e}");
+        false
+    });
+    let autostart_item = CheckMenuItem::with_id(
+        app,
+        ID_AUTOSTART,
+        "Start when logging in",
+        true,
+        autostart_enabled,
+        None::<&str>,
+    )?;
     let menu = Menu::with_items(
         app,
         &[
             &status_item,
             &PredefinedMenuItem::separator(app)?,
-            &tauri::menu::MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?,
+            &autostart_item,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?,
         ],
     )?;
     let icon = TrayIconBuilder::with_id("main")
@@ -50,6 +67,7 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     app.manage(Tray {
         icon,
         status_item,
+        autostart_item,
         status: Mutex::new(OverallStatus::Unknown),
     });
     apply(app);
@@ -59,8 +77,28 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
 fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     match event.id().as_ref() {
         ID_STATUS => open_status_page(app),
+        ID_AUTOSTART => toggle_autostart(app),
         ID_QUIT => app.exit(0),
         _ => {}
+    }
+}
+
+/// The check item flips itself on click; apply its new state, reverting it on failure.
+fn toggle_autostart(app: &AppHandle) {
+    let item = &app.state::<Tray>().autostart_item;
+    let enable = item.is_checked().unwrap_or(false);
+    let autolaunch = app.autolaunch();
+    let result = if enable {
+        autolaunch.enable()
+    } else {
+        autolaunch.disable()
+    };
+    if let Err(e) = result {
+        log::error!(
+            "failed to {} autostart: {e}",
+            if enable { "enable" } else { "disable" }
+        );
+        let _ = item.set_checked(!enable);
     }
 }
 
